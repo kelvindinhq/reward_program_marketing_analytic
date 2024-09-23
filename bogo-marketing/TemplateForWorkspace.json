@@ -1,0 +1,693 @@
+{
+	"$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"workspaceName": {
+			"type": "string",
+			"metadata": "Workspace name",
+			"defaultValue": "bogo-marketing"
+		},
+		"bogo-marketing-WorkspaceDefaultSqlServer_connectionString": {
+			"type": "secureString",
+			"metadata": "Secure string for 'connectionString' of 'bogo-marketing-WorkspaceDefaultSqlServer'",
+			"defaultValue": "Integrated Security=False;Encrypt=True;Connection Timeout=30;Data Source=tcp:bogo-marketing.sql.azuresynapse.net,1433;Initial Catalog=@{linkedService().DBName}"
+		},
+		"bogo-marketing-WorkspaceDefaultStorage_properties_typeProperties_url": {
+			"type": "string",
+			"defaultValue": "https://bogomarketingdl.dfs.core.windows.net"
+		}
+	},
+	"variables": {
+		"workspaceId": "[concat('Microsoft.Synapse/workspaces/', parameters('workspaceName'))]"
+	},
+	"resources": [
+		{
+			"name": "[concat(parameters('workspaceName'), '/bogo-marketing-WorkspaceDefaultSqlServer')]",
+			"type": "Microsoft.Synapse/workspaces/linkedServices",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"parameters": {
+					"DBName": {
+						"type": "String"
+					}
+				},
+				"annotations": [],
+				"type": "AzureSqlDW",
+				"typeProperties": {
+					"connectionString": "[parameters('bogo-marketing-WorkspaceDefaultSqlServer_connectionString')]"
+				},
+				"connectVia": {
+					"referenceName": "AutoResolveIntegrationRuntime",
+					"type": "IntegrationRuntimeReference"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/integrationRuntimes/AutoResolveIntegrationRuntime')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/bogo-marketing-WorkspaceDefaultStorage')]",
+			"type": "Microsoft.Synapse/workspaces/linkedServices",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"annotations": [],
+				"type": "AzureBlobFS",
+				"typeProperties": {
+					"url": "[parameters('bogo-marketing-WorkspaceDefaultStorage_properties_typeProperties_url')]"
+				},
+				"connectVia": {
+					"referenceName": "AutoResolveIntegrationRuntime",
+					"type": "IntegrationRuntimeReference"
+				}
+			},
+			"dependsOn": [
+				"[concat(variables('workspaceId'), '/integrationRuntimes/AutoResolveIntegrationRuntime')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/AutoResolveIntegrationRuntime')]",
+			"type": "Microsoft.Synapse/workspaces/integrationRuntimes",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"type": "Managed",
+				"typeProperties": {
+					"computeProperties": {
+						"location": "AutoResolve",
+						"dataFlowProperties": {
+							"computeType": "General",
+							"coreCount": 8,
+							"timeToLive": 0
+						}
+					}
+				}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/WorkspaceSystemIdentity')]",
+			"type": "Microsoft.Synapse/workspaces/credentials",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"type": "ManagedIdentity",
+				"typeProperties": {}
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/1_create_database')]",
+			"type": "Microsoft.Synapse/workspaces/sqlscripts",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"content": {
+					"query": "\n-- CREATE DATABASE\nIF DB_ID('bogo_marketing') IS NULL\n    CREATE DATABASE bogo_marketing;\n\n-- SWITCH TO bogo_marketing database\nUSE bogo_marketing;\n\nALTER DATABASE bogo_marketing COLLATE Latin1_General_100_CI_AI_SC_UTF8;\n\nCREATE SCHEMA bronze\nGO\n\nCREATE SCHEMA silver\nGO\n\nCREATE SCHEMA gold\nGO\n\nCREATE EXTERNAL DATA SOURCE ws_container_bogo_marketing\nWITH(\n    LOCATION = 'https://bogomarketingdl.dfs.core.windows.net/ws-container/'\n);\nCREATE EXTERNAL DATA SOURCE ws_container_bogo_marketing_raw\nWITH(\n    LOCATION = 'https://bogomarketingdl.dfs.core.windows.net/ws-container/raw'\n);\n\nIF NOT EXISTS (SELECT * FROM sys.external_file_formats WHERE name = 'parquet_file_format')\n    CREATE EXTERNAL FILE FORMAT parquet_file_format\n    WITH (\n        FORMAT_TYPE = PARQUET,\n        DATA_COMPRESSION = 'org.apache.hadoop.io.compress.SnappyCodec'\n    );",
+					"metadata": {
+						"language": "sql"
+					},
+					"currentConnection": {
+						"databaseName": "bogo_marketing",
+						"poolName": "Built-in"
+					},
+					"resultLimit": 5000
+				},
+				"type": "SqlQuery"
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/2_create_bronze_views')]",
+			"type": "Microsoft.Synapse/workspaces/sqlscripts",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"content": {
+					"query": "USE bogo_marketing\nGO\n\nDROP VIEW IF EXISTS bronze.vw_offer_type\nGO\n\nCREATE VIEW bronze.vw_offer_type\nAS\n    SELECT \n    reward,\n    JSON_VALUE(channels, '$[0]') AS channel_1,\n    JSON_VALUE(channels, '$[1]') AS channel_2,\n    JSON_VALUE(channels, '$[2]') AS channel_3,\n    JSON_VALUE(channels, '$[3]') AS channel_4,\n    difficulty,\n    duration,\n    offer_type,\n    id\nFROM OPENROWSET(\n        BULK 'portfolio.json',\n        DATA_SOURCE= 'ws_container_bogo_marketing_raw',\n        FORMAT = 'CSV',\n        FIELDQUOTE = '0x0b',\n        FIELDTERMINATOR ='0x0b'\n    )\n    WITH (\n        jsonDoc Nvarchar(MAX)\n    ) AS offer_type\n    CROSS APPLY OPENJSON(jsonDoc)\n    WITH(\n    reward SMALLINT,\n    channels NVARCHAR(MAX) AS JSON,\n    difficulty SMALLINT,\n    duration DECIMAL(5, 2),\n    offer_type VARCHAR(30),\n    id VARCHAR(50)\n    )\nGO\n\n-- SELECT * FROM bronze.vw_offer_type\n-- GO\n\nDROP VIEW IF EXISTS bronze.vw_customer_profile\nGO\n\nCREATE VIEW bronze.vw_customer_profile\nAS\nSELECT \n    gender,\n    age,\n    id,\n    became_member_on,\n    income\nFROM OPENROWSET(\n        BULK 'profile.json',\n        DATA_SOURCE= 'ws_container_bogo_marketing_raw',\n        FORMAT = 'CSV',\n        FIELDQUOTE = '0x0b',\n        FIELDTERMINATOR ='0x0b'\n    )\n    WITH (\n        jsonDoc Nvarchar(MAX)\n    ) AS customer_profile\n    CROSS APPLY OPENJSON(jsonDoc)\n    WITH(\n    gender VARCHAR(1),\n    age SMALLINT,\n    id VARCHAR(50),\n    became_member_on DATE,\n    income INT\n      )\nGO\n\nSELECT * FROM bronze.vw_customer_profile\nGO\n\nDROP VIEW IF EXISTS bronze.vw_transaction\nGO\n\nCREATE VIEW bronze.vw_transaction\nAS\nSELECT \n    person,\n    event,\n    amount,\n    time\nFROM OPENROWSET(\n        BULK 'transcript.json',\n        DATA_SOURCE= 'ws_container_bogo_marketing_raw',\n        FORMAT = 'CSV',\n        FIELDQUOTE = '0x0b',\n        FIELDTERMINATOR ='0x0b'\n    )\n    WITH (\n        jsonDoc Nvarchar(MAX)\n    ) AS transcript\n    CROSS APPLY OPENJSON(jsonDoc)\n    WITH(\n    person VARCHAR(50),\n    event VARCHAR(30),\n    value NVARCHAR(MAX) AS JSON,\n    time INT\n      )\n    CROSS APPLY OPENJSON(value)\n    WITH(\n    amount DECIMAL(7,2)\n      )\n    WHERE event = 'transaction'\nGO\n\nSELECT TOP 1000 * FROM bronze.vw_transaction\nGO\n\nDROP VIEW IF EXISTS bronze.vw_offer_received\nGO\n\nCREATE VIEW bronze.vw_offer_received\nAS\nSELECT \n    person,\n    event,\n    offer_id,\n    time\nFROM OPENROWSET(\n        BULK 'transcript.json',\n        DATA_SOURCE= 'ws_container_bogo_marketing_raw',\n        FORMAT = 'CSV',\n        FIELDQUOTE = '0x0b',\n        FIELDTERMINATOR ='0x0b'\n    )\n    WITH (\n        jsonDoc Nvarchar(MAX)\n    ) AS transcript\n    CROSS APPLY OPENJSON(jsonDoc)\n    WITH(\n    person VARCHAR(50),\n    event VARCHAR(30),\n    value NVARCHAR(MAX) AS JSON,\n    time INT\n      )\n    CROSS APPLY OPENJSON(value)\n    WITH(\n    offer_id VARCHAR(50) '$.\"offer id\"'\n      )\n    WHERE event = 'offer received'\nGO\n\nSELECT TOP 1000 * FROM bronze.vw_offer_received\nGO\n\nDROP VIEW IF EXISTS bronze.vw_offer_viewed\nGO\n\nCREATE VIEW bronze.vw_offer_viewed\nAS\nSELECT \n    person,\n    event,\n    offer_id,\n    time\nFROM OPENROWSET(\n        BULK 'transcript.json',\n        DATA_SOURCE= 'ws_container_bogo_marketing_raw',\n        FORMAT = 'CSV',\n        FIELDQUOTE = '0x0b',\n        FIELDTERMINATOR ='0x0b'\n    )\n    WITH (\n        jsonDoc Nvarchar(MAX)\n    ) AS transcript\n    CROSS APPLY OPENJSON(jsonDoc)\n    WITH(\n    person VARCHAR(50),\n    event VARCHAR(30),\n    value NVARCHAR(MAX) AS JSON,\n    time INT\n      )\n    CROSS APPLY OPENJSON(value)\n    WITH(\n    offer_id VARCHAR(50) '$.\"offer id\"'\n      )\n    WHERE event = 'offer viewed'\nGO\n\nSELECT TOP 1000 * FROM bronze.vw_offer_viewed\nGO\n\nDROP VIEW IF EXISTS bronze.vw_offer_completed\nGO\n\nCREATE VIEW bronze.vw_offer_completed\nAS\nSELECT \n    person,\n    event,\n    offer_id,\n    reward,\n    time\nFROM OPENROWSET(\n        BULK 'transcript.json',\n        DATA_SOURCE= 'ws_container_bogo_marketing_raw',\n        FORMAT = 'CSV',\n        FIELDQUOTE = '0x0b',\n        FIELDTERMINATOR ='0x0b'\n    )\n    WITH (\n        jsonDoc Nvarchar(MAX)\n    ) AS transcript\n    CROSS APPLY OPENJSON(jsonDoc)\n    WITH(\n    person VARCHAR(50),\n    event VARCHAR(30),\n    value NVARCHAR(MAX) AS JSON,\n    time INT\n      )\n    CROSS APPLY OPENJSON(value)\n    WITH(\n    offer_id VARCHAR(50) '$.\"offer_id\"',\n    reward SMALLINT\n      )\n    WHERE event = 'offer completed'\nGO\n\nSELECT TOP 1000 * FROM bronze.vw_offer_completed\nGO\n\n",
+					"metadata": {
+						"language": "sql"
+					},
+					"currentConnection": {
+						"databaseName": "bogo_marketing",
+						"poolName": "Built-in"
+					},
+					"resultLimit": 5000
+				},
+				"type": "SqlQuery"
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/3_create_silver_tables')]",
+			"type": "Microsoft.Synapse/workspaces/sqlscripts",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"content": {
+					"query": "USE bogo_marketing\nGO\n\nIF OBJECT_ID('silver.offer_type') IS NOT NULL\n    DROP EXTERNAL TABLE silver.offer_type\nGO\n\nCREATE EXTERNAL TABLE silver.offer_type\n    WITH\n    (\n        DATA_SOURCE = ws_container_bogo_marketing,\n        LOCATION = 'silver/offer_type',\n        FILE_format = parquet_file_format\n    )\nAS\nSELECT * FROM bronze.vw_offer_type\n\nSELECT * FROM silver.offer_type\n\nIF OBJECT_ID('silver.customer_profile') IS NOT NULL\n    DROP EXTERNAL TABLE silver.customer_profile\nGO\n\nCREATE EXTERNAL TABLE silver.customer_profile\n    WITH\n    (\n        DATA_SOURCE = ws_container_bogo_marketing,\n        LOCATION = 'silver/customer_profile',\n        FILE_format = parquet_file_format\n    )\nAS\nSELECT * FROM bronze.vw_customer_profile\n\nSELECT *FROM silver.customer_profile\n\n\nIF OBJECT_ID('silver.offer_completed') IS NOT NULL\n    DROP EXTERNAL TABLE silver.offer_completed\nGO\n\nCREATE EXTERNAL TABLE silver.offer_completed\n    WITH\n    (\n        DATA_SOURCE = ws_container_bogo_marketing,\n        LOCATION = 'silver/offer_completed',\n        FILE_format = parquet_file_format\n    )\nAS\nSELECT * FROM bronze.vw_offer_completed\n\n\n\nIF OBJECT_ID('silver.offer_received') IS NOT NULL\n    DROP EXTERNAL TABLE silver.offer_received\nGO\n\nCREATE EXTERNAL TABLE silver.offer_received\n    WITH\n    (\n        DATA_SOURCE = ws_container_bogo_marketing,\n        LOCATION = 'silver/offer_received',\n        FILE_format = parquet_file_format\n    )\nAS\nSELECT * FROM bronze.vw_offer_received\n\n\nIF OBJECT_ID('silver.offer_viewed') IS NOT NULL\n    DROP EXTERNAL TABLE silver.offer_viewed\nGO\n\nCREATE EXTERNAL TABLE silver.offer_viewed\n    WITH\n    (\n        DATA_SOURCE = ws_container_bogo_marketing,\n        LOCATION = 'silver/offer_viewed',\n        FILE_format = parquet_file_format\n    )\nAS\nSELECT * FROM bronze.vw_offer_viewed\n\nIF OBJECT_ID('silver.transactions') IS NOT NULL\n    DROP EXTERNAL TABLE silver.transactions\nGO\n\nCREATE EXTERNAL TABLE silver.transactions\n    WITH\n    (\n        DATA_SOURCE = ws_container_bogo_marketing,\n        LOCATION = 'silver/transaction',\n        FILE_format = parquet_file_format\n    )\nAS\nSELECT * FROM bronze.vw_transaction\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n",
+					"metadata": {
+						"language": "sql"
+					},
+					"currentConnection": {
+						"databaseName": "bogo_marketing",
+						"poolName": "Built-in"
+					},
+					"resultLimit": 5000
+				},
+				"type": "SqlQuery"
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/Dimension table')]",
+			"type": "Microsoft.Synapse/workspaces/notebooks",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"nbformat": 4,
+				"nbformat_minor": 2,
+				"bigDataPool": {
+					"referenceName": "rewardprogram",
+					"type": "BigDataPoolReference"
+				},
+				"sessionProperties": {
+					"driverMemory": "28g",
+					"driverCores": 4,
+					"executorMemory": "28g",
+					"executorCores": 4,
+					"numExecutors": 2,
+					"runAsWorkspaceSystemIdentity": false,
+					"conf": {
+						"spark.dynamicAllocation.enabled": "false",
+						"spark.dynamicAllocation.minExecutors": "2",
+						"spark.dynamicAllocation.maxExecutors": "2",
+						"spark.autotune.trackingId": "d50d2144-8f72-4dd4-9cd9-29dc12242417"
+					}
+				},
+				"metadata": {
+					"saveOutput": true,
+					"synapse_widget": {
+						"version": "0.1"
+					},
+					"enableDebugMode": false,
+					"language_info": {
+						"name": "python"
+					},
+					"a365ComputeOptions": {
+						"id": "/subscriptions/43a049ab-e8dd-4186-9c41-293612e2b282/resourceGroups/bogo_campaign_data/providers/Microsoft.Synapse/workspaces/bogo-marketing/bigDataPools/rewardprogram",
+						"name": "rewardprogram",
+						"type": "Spark",
+						"endpoint": "https://bogo-marketing.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/rewardprogram",
+						"auth": {
+							"type": "AAD",
+							"authResource": "https://dev.azuresynapse.net",
+							"authHeader": null
+						},
+						"sparkVersion": "3.4",
+						"nodeCount": 3,
+						"cores": 4,
+						"memory": 28,
+						"extraHeader": null
+					},
+					"sessionKeepAliveTimeout": 1
+				},
+				"cells": [
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"#### Dimension table - Data Cleaning\r\n",
+							""
+						]
+					},
+					{
+						"cell_type": "markdown",
+						"metadata": {
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"##### Purpose of the noode book:\r\n",
+							"1. Clean duplicate, null values from dimension tables\r\n",
+							"2. Write to gold layer data storage"
+						]
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"# Set the folder paths so that it can be used later\r\n",
+							"silver_folder_path = 'abfss://ws-container@bogomarketingdl.dfs.core.windows.net/silver'\r\n",
+							"gold_folder_path = 'abfss://ws-container@bogomarketingdl.dfs.core.windows.net/gold'"
+						],
+						"outputs": [],
+						"execution_count": 11
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"microsoft": {
+								"language": "sparksql"
+							},
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"collapsed": false
+						},
+						"source": [
+							"%%sql\r\n",
+							"CREATE DATABASE IF NOT EXISTS gold_reward_program_spark\r\n",
+							"LOCATION 'abfss://ws-container@bogomarketingdl.dfs.core.windows.net/gold';"
+						],
+						"outputs": []
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"customer_profile = spark.read.parquet(f\"{silver_folder_path}/customer_profile\")"
+						],
+						"outputs": [],
+						"execution_count": 12
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"customer_profile.show()"
+						],
+						"outputs": [],
+						"execution_count": 13
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"from pyspark.sql.functions import col,isnan, when, count"
+						],
+						"outputs": [],
+						"execution_count": 14
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"customer_profile.filter(customer_profile.gender.isNull()).show()"
+						],
+						"outputs": [],
+						"execution_count": 17
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"customer_profile = customer_profile.na.fill(\"Unknown\", subset=['gender'])\r\n",
+							"customer_profile = customer_profile.na.fill(0, subset=['income'])"
+						],
+						"outputs": [],
+						"execution_count": 16
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"customer_profile.select([count(when(isnan(c) | col(c).isNull(), c)).alias(c) for c in ['gender', 'age', 'income']]\r\n",
+							"   ).show()"
+						],
+						"outputs": [],
+						"execution_count": 18
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"microsoft": {
+								"language": "sparksql"
+							},
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							},
+							"collapsed": false
+						},
+						"source": [
+							"%%sql\r\n",
+							"Drop table if exists gold_reward_program_spark.customer_profile"
+						],
+						"outputs": [],
+						"execution_count": 19
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"customer_profile.write.mode(\"overwrite\").format(\"parquet\").saveAsTable(\"gold_reward_program_spark.customer_profile\")"
+						],
+						"outputs": [],
+						"execution_count": 20
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"offer_type = spark.read.parquet(f\"{silver_folder_path}/offer_type\")"
+						],
+						"outputs": []
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"offer_type.show()"
+						],
+						"outputs": []
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"from pyspark.sql import functions as F\r\n",
+							"\r\n",
+							"# List of unique channels across all columns\r\n",
+							"channels = ['web', 'email', 'mobile', 'social']\r\n",
+							"\r\n",
+							"# Iterate over each channel and create a dummy column for it\r\n",
+							"for channel in channels:\r\n",
+							"    # Check if the channel appears in any of the four channel columns\r\n",
+							"    offer_type = offer_type.withColumn(f'channel_{channel}', \r\n",
+							"                       F.when(\r\n",
+							"                           (F.col('channel_1') == channel) |\r\n",
+							"                           (F.col('channel_2') == channel) |\r\n",
+							"                           (F.col('channel_3') == channel) |\r\n",
+							"                           (F.col('channel_4') == channel), 1\r\n",
+							"                       ).otherwise(0))\r\n",
+							"\r\n",
+							"# Drop original channel columns if no longer needed\r\n",
+							"offer_type = offer_type.drop('channel_1', 'channel_2', 'channel_3', 'channel_4')\r\n",
+							"\r\n",
+							"# Show the resulting DataFrame\r\n",
+							"offer_type.show()"
+						],
+						"outputs": []
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"offer_type.write.mode(\"overwrite\").format(\"parquet\").saveAsTable(\"gold_reward_program_spark.offer_type\")"
+						],
+						"outputs": []
+					}
+				]
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/Fact Tables')]",
+			"type": "Microsoft.Synapse/workspaces/notebooks",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"nbformat": 4,
+				"nbformat_minor": 2,
+				"bigDataPool": {
+					"referenceName": "rewardprogram",
+					"type": "BigDataPoolReference"
+				},
+				"sessionProperties": {
+					"driverMemory": "28g",
+					"driverCores": 4,
+					"executorMemory": "28g",
+					"executorCores": 4,
+					"numExecutors": 2,
+					"runAsWorkspaceSystemIdentity": false,
+					"conf": {
+						"spark.dynamicAllocation.enabled": "false",
+						"spark.dynamicAllocation.minExecutors": "2",
+						"spark.dynamicAllocation.maxExecutors": "2",
+						"spark.autotune.trackingId": "acf7783e-ee01-46a6-bb8a-c571444b4443"
+					}
+				},
+				"metadata": {
+					"saveOutput": true,
+					"synapse_widget": {
+						"version": "0.1"
+					},
+					"enableDebugMode": false,
+					"language_info": {
+						"name": "python"
+					},
+					"a365ComputeOptions": {
+						"id": "/subscriptions/43a049ab-e8dd-4186-9c41-293612e2b282/resourceGroups/bogo_campaign_data/providers/Microsoft.Synapse/workspaces/bogo-marketing/bigDataPools/rewardprogram",
+						"name": "rewardprogram",
+						"type": "Spark",
+						"endpoint": "https://bogo-marketing.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/rewardprogram",
+						"auth": {
+							"type": "AAD",
+							"authResource": "https://dev.azuresynapse.net",
+							"authHeader": null
+						},
+						"sparkVersion": "3.4",
+						"nodeCount": 3,
+						"cores": 4,
+						"memory": 28,
+						"extraHeader": null
+					},
+					"sessionKeepAliveTimeout": 30
+				},
+				"cells": [
+					{
+						"cell_type": "code",
+						"source": [
+							"# Set the folder paths so that it can be used later\r\n",
+							"silver_folder_path = 'abfss://ws-container@bogomarketingdl.dfs.core.windows.net/silver'\r\n",
+							"gold_folder_path = 'abfss://ws-container@bogomarketingdl.dfs.core.windows.net/gold'"
+						],
+						"outputs": []
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"from pyspark.sql import functions as F"
+						],
+						"outputs": []
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"def ingest_table(table_name):\r\n",
+							"    df = spark.read.parquet(f\"{silver_folder_path}/{table_name}\")\r\n",
+							"    # Create the 'day' column by dividing 'time' by 24\r\n",
+							"    df = df.withColumn('day', ((F.col('time') / 24)+1).cast('int'))\r\n",
+							"    df = df.dropDuplicates()\r\n",
+							"    df.write.mode(\"overwrite\").partitionBy(\"day\",\"time\")\\\r\n",
+							"    .format(\"parquet\").saveAsTable(f\"gold_reward_program_spark.{table_name}\")"
+						],
+						"outputs": []
+					},
+					{
+						"cell_type": "code",
+						"metadata": {
+							"jupyter": {
+								"source_hidden": false,
+								"outputs_hidden": false
+							},
+							"nteract": {
+								"transient": {
+									"deleting": false
+								}
+							}
+						},
+						"source": [
+							"table_names = ['transaction','order_received','order_viewed','order_completed']\r\n",
+							"\r\n",
+							"foreach table_name in table_names:\r\n",
+							"    ingest_table(table_name)"
+						],
+						"outputs": []
+					}
+				]
+			},
+			"dependsOn": []
+		},
+		{
+			"name": "[concat(parameters('workspaceName'), '/rewardprogram')]",
+			"type": "Microsoft.Synapse/workspaces/bigDataPools",
+			"apiVersion": "2019-06-01-preview",
+			"properties": {
+				"autoPause": {
+					"enabled": true,
+					"delayInMinutes": 5
+				},
+				"autoScale": {
+					"enabled": false,
+					"maxNodeCount": 3,
+					"minNodeCount": 3
+				},
+				"nodeCount": 3,
+				"nodeSize": "Small",
+				"nodeSizeFamily": "MemoryOptimized",
+				"sparkVersion": "3.4",
+				"isComputeIsolationEnabled": false,
+				"sessionLevelPackagesEnabled": false,
+				"annotations": []
+			},
+			"dependsOn": [],
+			"location": "eastus2"
+		}
+	]
+}
