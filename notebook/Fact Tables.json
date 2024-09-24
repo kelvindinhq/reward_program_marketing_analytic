@@ -18,15 +18,16 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "acf7783e-ee01-46a6-bb8a-c571444b4443"
+				"spark.autotune.trackingId": "b25e95ad-cc30-4827-bed7-615e36b7f573"
 			}
 		},
 		"metadata": {
 			"saveOutput": true,
-			"synapse_widget": {
-				"version": "0.1"
-			},
 			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
 			"language_info": {
 				"name": "python"
 			},
@@ -37,14 +38,13 @@
 				"endpoint": "https://bogo-marketing.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/rewardprogram",
 				"auth": {
 					"type": "AAD",
-					"authResource": "https://dev.azuresynapse.net",
-					"authHeader": null
+					"authResource": "https://dev.azuresynapse.net"
 				},
 				"sparkVersion": "3.4",
 				"nodeCount": 3,
 				"cores": 4,
 				"memory": 28,
-				"extraHeader": null
+				"automaticScaleJobs": false
 			},
 			"sessionKeepAliveTimeout": 30
 		},
@@ -55,7 +55,8 @@
 					"# Set the folder paths so that it can be used later\r\n",
 					"silver_folder_path = 'abfss://ws-container@bogomarketingdl.dfs.core.windows.net/silver'\r\n",
 					"gold_folder_path = 'abfss://ws-container@bogomarketingdl.dfs.core.windows.net/gold'"
-				]
+				],
+				"execution_count": 10
 			},
 			{
 				"cell_type": "code",
@@ -72,7 +73,8 @@
 				},
 				"source": [
 					"from pyspark.sql import functions as F"
-				]
+				],
+				"execution_count": 11
 			},
 			{
 				"cell_type": "code",
@@ -95,7 +97,8 @@
 					"    df = df.dropDuplicates()\r\n",
 					"    df.write.mode(\"overwrite\").partitionBy(\"day\",\"time\")\\\r\n",
 					"    .format(\"parquet\").saveAsTable(f\"gold_reward_program_spark.{table_name}\")"
-				]
+				],
+				"execution_count": 12
 			},
 			{
 				"cell_type": "code",
@@ -111,11 +114,13 @@
 					}
 				},
 				"source": [
-					"table_names = ['transaction','order_received','order_viewed','order_completed']\r\n",
+					"table_names = ['transaction','offer_received','offer_viewed','offer_completed']\r\n",
 					"\r\n",
-					"foreach table_name in table_names:\r\n",
-					"    ingest_table(table_name)"
-				]
+					"for table_name in table_names:\r\n",
+					"    ingest_table(table_name)\r\n",
+					"    print(f\"success create table {table_name}\")"
+				],
+				"execution_count": 13
 			}
 		]
 	}
