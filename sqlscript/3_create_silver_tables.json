@@ -1,0 +1,17 @@
+{
+	"name": "3_create_silver_tables",
+	"properties": {
+		"content": {
+			"query": "USE bogo_marketing\nGO\n\nIF OBJECT_ID('silver.offer_type') IS NOT NULL\n    DROP EXTERNAL TABLE silver.offer_type\nGO\n\nCREATE EXTERNAL TABLE silver.offer_type\n    WITH\n    (\n        DATA_SOURCE = ws_container_bogo_marketing,\n        LOCATION = 'silver/offer_type',\n        FILE_format = parquet_file_format\n    )\nAS\nSELECT * FROM bronze.vw_offer_type\n\nSELECT * FROM silver.offer_type\n\nIF OBJECT_ID('silver.customer_profile') IS NOT NULL\n    DROP EXTERNAL TABLE silver.customer_profile\nGO\n\nCREATE EXTERNAL TABLE silver.customer_profile\n    WITH\n    (\n        DATA_SOURCE = ws_container_bogo_marketing,\n        LOCATION = 'silver/customer_profile',\n        FILE_format = parquet_file_format\n    )\nAS\nSELECT * FROM bronze.vw_customer_profile\n\nSELECT *FROM silver.customer_profile\n\n\nIF OBJECT_ID('silver.offer_completed') IS NOT NULL\n    DROP EXTERNAL TABLE silver.offer_completed\nGO\n\nCREATE EXTERNAL TABLE silver.offer_completed\n    WITH\n    (\n        DATA_SOURCE = ws_container_bogo_marketing,\n        LOCATION = 'silver/offer_completed',\n        FILE_format = parquet_file_format\n    )\nAS\nSELECT * FROM bronze.vw_offer_completed\n\n\n\nIF OBJECT_ID('silver.offer_received') IS NOT NULL\n    DROP EXTERNAL TABLE silver.offer_received\nGO\n\nCREATE EXTERNAL TABLE silver.offer_received\n    WITH\n    (\n        DATA_SOURCE = ws_container_bogo_marketing,\n        LOCATION = 'silver/offer_received',\n        FILE_format = parquet_file_format\n    )\nAS\nSELECT * FROM bronze.vw_offer_received\n\n\nIF OBJECT_ID('silver.offer_viewed') IS NOT NULL\n    DROP EXTERNAL TABLE silver.offer_viewed\nGO\n\nCREATE EXTERNAL TABLE silver.offer_viewed\n    WITH\n    (\n        DATA_SOURCE = ws_container_bogo_marketing,\n        LOCATION = 'silver/offer_viewed',\n        FILE_format = parquet_file_format\n    )\nAS\nSELECT * FROM bronze.vw_offer_viewed\n\nIF OBJECT_ID('silver.transactions') IS NOT NULL\n    DROP EXTERNAL TABLE silver.transactions\nGO\n\nCREATE EXTERNAL TABLE silver.transactions\n    WITH\n    (\n        DATA_SOURCE = ws_container_bogo_marketing,\n        LOCATION = 'silver/transaction',\n        FILE_format = parquet_file_format\n    )\nAS\nSELECT * FROM bronze.vw_transaction\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n",
+			"metadata": {
+				"language": "sql"
+			},
+			"currentConnection": {
+				"databaseName": "bogo_marketing",
+				"poolName": "Built-in"
+			},
+			"resultLimit": 5000
+		},
+		"type": "SqlQuery"
+	}
+}

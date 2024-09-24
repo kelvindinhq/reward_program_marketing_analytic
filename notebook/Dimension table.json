@@ -1,0 +1,365 @@
+{
+	"name": "Dimension table",
+	"properties": {
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "rewardprogram",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"runAsWorkspaceSystemIdentity": false,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "d50d2144-8f72-4dd4-9cd9-29dc12242417"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"synapse_widget": {
+				"version": "0.1"
+			},
+			"enableDebugMode": false,
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/43a049ab-e8dd-4186-9c41-293612e2b282/resourceGroups/bogo_campaign_data/providers/Microsoft.Synapse/workspaces/bogo-marketing/bigDataPools/rewardprogram",
+				"name": "rewardprogram",
+				"type": "Spark",
+				"endpoint": "https://bogo-marketing.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/rewardprogram",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net",
+					"authHeader": null
+				},
+				"sparkVersion": "3.4",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"extraHeader": null
+			},
+			"sessionKeepAliveTimeout": 1
+		},
+		"cells": [
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"#### Dimension table - Data Cleaning\r\n",
+					""
+				]
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"##### Purpose of the noode book:\r\n",
+					"1. Clean duplicate, null values from dimension tables\r\n",
+					"2. Write to gold layer data storage"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# Set the folder paths so that it can be used later\r\n",
+					"silver_folder_path = 'abfss://ws-container@bogomarketingdl.dfs.core.windows.net/silver'\r\n",
+					"gold_folder_path = 'abfss://ws-container@bogomarketingdl.dfs.core.windows.net/gold'"
+				],
+				"execution_count": 11
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\r\n",
+					"CREATE DATABASE IF NOT EXISTS gold_reward_program_spark\r\n",
+					"LOCATION 'abfss://ws-container@bogomarketingdl.dfs.core.windows.net/gold';"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"customer_profile = spark.read.parquet(f\"{silver_folder_path}/customer_profile\")"
+				],
+				"execution_count": 12
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"customer_profile.show()"
+				],
+				"execution_count": 13
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"from pyspark.sql.functions import col,isnan, when, count"
+				],
+				"execution_count": 14
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"customer_profile.filter(customer_profile.gender.isNull()).show()"
+				],
+				"execution_count": 17
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"customer_profile = customer_profile.na.fill(\"Unknown\", subset=['gender'])\r\n",
+					"customer_profile = customer_profile.na.fill(0, subset=['income'])"
+				],
+				"execution_count": 16
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"customer_profile.select([count(when(isnan(c) | col(c).isNull(), c)).alias(c) for c in ['gender', 'age', 'income']]\r\n",
+					"   ).show()"
+				],
+				"execution_count": 18
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\r\n",
+					"Drop table if exists gold_reward_program_spark.customer_profile"
+				],
+				"execution_count": 19
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"customer_profile.write.mode(\"overwrite\").format(\"parquet\").saveAsTable(\"gold_reward_program_spark.customer_profile\")"
+				],
+				"execution_count": 20
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"offer_type = spark.read.parquet(f\"{silver_folder_path}/offer_type\")"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"offer_type.show()"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"from pyspark.sql import functions as F\r\n",
+					"\r\n",
+					"# List of unique channels across all columns\r\n",
+					"channels = ['web', 'email', 'mobile', 'social']\r\n",
+					"\r\n",
+					"# Iterate over each channel and create a dummy column for it\r\n",
+					"for channel in channels:\r\n",
+					"    # Check if the channel appears in any of the four channel columns\r\n",
+					"    offer_type = offer_type.withColumn(f'channel_{channel}', \r\n",
+					"                       F.when(\r\n",
+					"                           (F.col('channel_1') == channel) |\r\n",
+					"                           (F.col('channel_2') == channel) |\r\n",
+					"                           (F.col('channel_3') == channel) |\r\n",
+					"                           (F.col('channel_4') == channel), 1\r\n",
+					"                       ).otherwise(0))\r\n",
+					"\r\n",
+					"# Drop original channel columns if no longer needed\r\n",
+					"offer_type = offer_type.drop('channel_1', 'channel_2', 'channel_3', 'channel_4')\r\n",
+					"\r\n",
+					"# Show the resulting DataFrame\r\n",
+					"offer_type.show()"
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"offer_type.write.mode(\"overwrite\").format(\"parquet\").saveAsTable(\"gold_reward_program_spark.offer_type\")"
+				]
+			}
+		]
+	}
+}
