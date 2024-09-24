@@ -1,0 +1,89 @@
+CATALOG_NAME,SCHEMA_NAME,CUBE_NAME,MEASURE_NAME,MEASURE_UNIQUE_NAME,MEASURE_CAPTION,MEASURE_GUID,MEASURE_AGGREGATOR,DATA_TYPE,NUMERIC_PRECISION,NUMERIC_SCALE,MEASURE_UNITS,DESCRIPTION,EXPRESSION,MEASURE_IS_VISIBLE,LEVELS_LIST,MEASURE_NAME_SQL_COLUMN_NAME,MEASURE_UNQUALIFIED_CAPTION,MEASUREGROUP_NAME,MEASURE_DISPLAY_FOLDER,DEFAULT_FORMAT_STRING
+"96ea3ea8-5dba-4e74-b144-e0b1c1c040d9","","Model","customer_distinct","[Measures].[customer_distinct]","customer_distinct",,0,20,65535,-1,"","","DISTINCTCOUNT(customer_profile[Customer Key])",True,"","customer_distinct","customer_distinct","Measure","","0.00"
+"96ea3ea8-5dba-4e74-b144-e0b1c1c040d9","","Model","customer_who_purchase","[Measures].[customer_who_purchase]","customer_who_purchase",,0,20,65535,-1,"","","DISTINCTCOUNT('transaction'[row_id])",True,"","customer_who_purchase","customer_who_purchase","Measure","","0"
+"96ea3ea8-5dba-4e74-b144-e0b1c1c040d9","","Model","revenue_by_normal_trans","[Measures].[revenue_by_normal_trans]","revenue_by_normal_trans",,0,5,65535,-1,"","","calculate(
+    sum('transaction'[amount]),
+    NOT('transaction'[row_id] in values(offer_completed[row_id_trans])
+))",True,"","revenue_by_normal_trans","revenue_by_normal_trans","Measure","",""
+"96ea3ea8-5dba-4e74-b144-e0b1c1c040d9","","Model","Promotion Revenue","[Measures].[Promotion Revenue]","Promotion Revenue",,0,5,65535,-1,"","","CALCULATE(
+    SUM('transaction'[amount]),
+    FILTER('transaction','transaction'[row_id] in values(offer_completed[row_id_trans])))",True,"","Promotion Revenue","Promotion Revenue","Measure","","\$#,0.00;(\$#,0.00);\$#,0.00"
+"96ea3ea8-5dba-4e74-b144-e0b1c1c040d9","","Model","projected reward amount","[Measures].[projected reward amount]","projected reward amount",,0,20,65535,-1,"","","SUMX(
+    promotion_reward,
+    1*RELATED(offer_type[reward]))",True,"","projected reward amount","projected reward amount","Measure","","0"
+"96ea3ea8-5dba-4e74-b144-e0b1c1c040d9","","Model","projected revenue by promotion","[Measures].[projected revenue by promotion]","projected revenue by promotion",,0,20,65535,-1,"","","SUMX(
+    promotion_reward,
+    1*RELATED(offer_type[difficulty]))",True,"","projected revenue by promotion","projected revenue by promotion","Measure","","0"
+"96ea3ea8-5dba-4e74-b144-e0b1c1c040d9","","Model","Reach","[Measures].[Reach]","Reach",,0,20,65535,-1,"","","COUNT(promotion_reward[offer_received_row_id])",True,"","Reach","Reach","Measure","","0"
+"96ea3ea8-5dba-4e74-b144-e0b1c1c040d9","","Model","Engagement","[Measures].[Engagement]","Engagement",,0,20,65535,-1,"","","COUNT(promotion_reward[offer_viewed_row_id])",True,"","Engagement","Engagement","Measure","","#,0"
+"96ea3ea8-5dba-4e74-b144-e0b1c1c040d9","","Model","Total_Voucher Redeemed","[Measures].[Total_Voucher Redeemed]","Total_Voucher Redeemed",,0,20,65535,-1,"","","COUNT(offer_completed[row_id])",True,"","Total_Voucher Redeemed","Total_Voucher Redeemed","Measure","","#,0"
+"96ea3ea8-5dba-4e74-b144-e0b1c1c040d9","","Model","distinct customer used voucher","[Measures].[distinct customer used voucher]","distinct customer used voucher",,0,20,65535,-1,"","","DISTINCTCOUNT(offer_completed[person])",True,"","distinct customer used voucher","distinct customer used voucher","Measure","","0"
+"96ea3ea8-5dba-4e74-b144-e0b1c1c040d9","","Model","Total Revenue","[Measures].[Total Revenue]","Total Revenue",,0,5,65535,-1,"","","SUM('transaction'[amount])",True,"","Total Revenue","Total Revenue","Measure","","\$#,0.00;(\$#,0.00);\$#,0.00"
+"96ea3ea8-5dba-4e74-b144-e0b1c1c040d9","","Model","previous week revenue","[Measures].[previous week revenue]","previous week revenue",,0,5,65535,-1,"","","CALCULATE(
+    [Promotion Revenue],
+    DATEADD(
+        'CalendarSeptember2024'[Date],
+        -7,DAY))",True,"","previous week revenue","previous week revenue","Measure","",""
+"96ea3ea8-5dba-4e74-b144-e0b1c1c040d9","","Model","all revenue","[Measures].[all revenue]","all revenue",,0,5,65535,-1,"","","CALCULATE(SUM('transaction'[amount]),ALL('transaction'))",True,"","all revenue","all revenue","Measure","",""
+"96ea3ea8-5dba-4e74-b144-e0b1c1c040d9","","Model","Conversion Rate","[Measures].[Conversion Rate]","Conversion Rate",,0,5,65535,-1,"","","DIVIDE([Total_Voucher Redeemed],[Reach])",True,"","Conversion Rate","Conversion Rate","Measure","","0.00%;-0.00%;0.00%"
+"96ea3ea8-5dba-4e74-b144-e0b1c1c040d9","","Model","Promotion Cost","[Measures].[Promotion Cost]","Promotion Cost",,0,20,65535,-1,"","","sum(offer_completed[reward])",True,"","Promotion Cost","Promotion Cost","Measure","","\$#,0.###############;(\$#,0.###############);\$#,0.###############"
+"96ea3ea8-5dba-4e74-b144-e0b1c1c040d9","","Model","Total Transaction","[Measures].[Total Transaction]","Total Transaction",,0,20,65535,-1,"","","COUNT('transaction'[row_id])",True,"","Total Transaction","Total Transaction","Measure","","#,0"
+"96ea3ea8-5dba-4e74-b144-e0b1c1c040d9","","Model","click_through_rate","[Measures].[click_through_rate]","click_through_rate",,0,5,65535,-1,"","","DIVIDE([Engagement],[Reach])",True,"","click_through_rate","click_through_rate","Measure","","0.00%;-0.00%;0.00%"
+"96ea3ea8-5dba-4e74-b144-e0b1c1c040d9","","Model","Engagement Rate","[Measures].[Engagement Rate]","Engagement Rate",,0,5,65535,-1,"","","divide([Engagement],[target voucher sent])",True,"","Engagement Rate","Engagement Rate","Measure","","0.00%;-0.00%;0.00%"
+"96ea3ea8-5dba-4e74-b144-e0b1c1c040d9","","Model","target voucher sent","[Measures].[target voucher sent]","target voucher sent",,0,5,65535,-1,"","","CALCULATE(
+    [Reach]*1.1,
+    DATEADD(
+        CalendarSeptember2024[Date],
+        -7,
+        DAY
+    ))",True,"","target voucher sent","target voucher sent","Measure","","0"
+"96ea3ea8-5dba-4e74-b144-e0b1c1c040d9","","Model","target voucher viewed","[Measures].[target voucher viewed]","target voucher viewed",,0,5,65535,-1,"","","CALCULATE(
+    [Engagement]*1.1,
+    DATEADD(
+        CalendarSeptember2024[Date],
+        -7,
+        DAY
+    ))",True,"","target voucher viewed","target voucher viewed","Measure","",""
+"96ea3ea8-5dba-4e74-b144-e0b1c1c040d9","","Model","target conversion_rate","[Measures].[target conversion_rate]","target conversion_rate",,0,5,65535,-1,"","","CALCULATE(
+    [Conversion Rate]*1.1,
+    DATEADD(
+        CalendarSeptember2024[Date],
+        -7,
+        DAY
+    ))",True,"","target conversion_rate","target conversion_rate","Measure","",""
+"96ea3ea8-5dba-4e74-b144-e0b1c1c040d9","","Model","target engagement","[Measures].[target engagement]","target engagement",,0,5,65535,-1,"","","CALCULATE(
+    [Engagement Rate]*1.1,
+    DATEADD(
+        CalendarSeptember2024[Date],
+        -7,
+        DAY
+    ))",True,"","target engagement","target engagement","Measure","",""
+"96ea3ea8-5dba-4e74-b144-e0b1c1c040d9","","Model","Cost Per Conversion","[Measures].[Cost Per Conversion]","Cost Per Conversion",,0,5,65535,-1,"","","DIVIDE([Promotion Cost],[Total_Voucher Redeemed])",True,"","Cost Per Conversion","Cost Per Conversion","Measure","","\$#,0.00;(\$#,0.00);\$#,0.00"
+"96ea3ea8-5dba-4e74-b144-e0b1c1c040d9","","Model","cost per voucher","[Measures].[cost per voucher]","cost per voucher",,0,5,65535,-1,"","","divide([Reach],[Promotion Cost])",True,"","cost per voucher","cost per voucher","Measure","",""
+"96ea3ea8-5dba-4e74-b144-e0b1c1c040d9","","Model","Revenue Per Conversion","[Measures].[Revenue Per Conversion]","Revenue Per Conversion",,0,5,65535,-1,"","","divide([Promotion Revenue],[Total_Voucher Redeemed])",True,"","Revenue Per Conversion","Revenue Per Conversion","Measure","","\$#,0.00;(\$#,0.00);\$#,0.00"
+"96ea3ea8-5dba-4e74-b144-e0b1c1c040d9","","Model","target conversion","[Measures].[target conversion]","target conversion",,0,5,65535,-1,"","","Calculate(
+    [Conversion]*1.1,
+    DATEADD(CalendarSeptember2024[Date], -7,DAY)
+)",True,"","target conversion","target conversion","Measure","",""
+"96ea3ea8-5dba-4e74-b144-e0b1c1c040d9","","Model","Conversion","[Measures].[Conversion]","Conversion",,0,20,65535,-1,"","","count(offer_completed[row_id])",True,"","Conversion","Conversion","Measure","","#,0"
+"96ea3ea8-5dba-4e74-b144-e0b1c1c040d9","","Model","target revenue per converson","[Measures].[target revenue per converson]","target revenue per converson",,0,5,65535,-1,"","","Calculate(
+    [Revenue Per Conversion]*1.1,
+    DATEADD(CalendarSeptember2024[Date], -7,DAY)
+)",True,"","target revenue per converson","target revenue per converson","Measure","","\$#,0.###############;(\$#,0.###############);\$#,0.###############"
+"96ea3ea8-5dba-4e74-b144-e0b1c1c040d9","","Model","target cost per converson","[Measures].[target cost per converson]","target cost per converson",,0,5,65535,-1,"","","Calculate(
+    [Cost Per Conversion]*0.9,
+    DATEADD(CalendarSeptember2024[Date], -7,DAY)
+)",True,"","target cost per converson","target cost per converson","Measure","","\$#,0.00;(\$#,0.00);\$#,0.00"
+"96ea3ea8-5dba-4e74-b144-e0b1c1c040d9","","Model","Sales Use Promotion","[Measures].[Sales Use Promotion]","Sales Use Promotion",,0,5,65535,-1,"","","DIVIDE(COUNT(offer_completed[row_id]),[Total Transaction])",True,"","Sales Use Promotion","Sales Use Promotion","Measure","","0.00%;-0.00%;0.00%"
+"96ea3ea8-5dba-4e74-b144-e0b1c1c040d9","","Model","previous week cost","[Measures].[previous week cost]","previous week cost",,0,20,65535,-1,"","","CALCULATE(
+    [Promotion Cost],
+    DATEADD(
+        'CalendarSeptember2024'[Date],
+        -7,DAY))",True,"","previous week cost","previous week cost","Measure","","0"
+"96ea3ea8-5dba-4e74-b144-e0b1c1c040d9","","Model","previous week conversion","[Measures].[previous week conversion]","previous week conversion",,0,20,65535,-1,"","","CALCULATE(
+    [Conversion],
+    DATEADD(
+        'CalendarSeptember2024'[Date],
+        -7,DAY))",True,"","previous week conversion","previous week conversion","Measure","","0"
+"96ea3ea8-5dba-4e74-b144-e0b1c1c040d9","","Model","revenue per customer","[Measures].[revenue per customer]","revenue per customer",,0,5,65535,-1,"","","divide([Total Revenue],[customer_distinct])",True,"","revenue per customer","revenue per customer","Measure","","\$#,0.00;(\$#,0.00);\$#,0.00"
+"96ea3ea8-5dba-4e74-b144-e0b1c1c040d9","","Model","__Default measure","[Measures].[__Default measure]","__Default measure",,127,12,65535,-1,"","","1",False,"","__Default measure","__Default measure","","",""
