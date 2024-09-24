@@ -31,7 +31,6 @@ During the promotion month, the company's sales from promotions gradually increa
 
 - The latter half of the promotion period saw a great increase in revenue, with week 3 sales of $188,181 and week 4 of $206,992 compared to the first week of $93,342. This corresponds to a lag in customer acceptance toward the promotion program.
 - Conversions showed similar trends, doubling in the last two weeks to 10,313 weekly, compared to just half that figure at 4,658 in the first two weeks.  
-![Sales Trend by week](./img/sales%20by%20week.png)
 - The company’s sales peaked on Sunday with $136,747 in promotional revenue and 6,389 conversions over 4 weeks but decreased sharply toward the end of the week, with a 40% drop in sales from Thursday and a 60% decrease on Saturday compared to Sunday.  
 ![Sales Trend by week day](./img/sales%20by%20week%20day.png)
 - The 10% discount was more widely accepted than the 20% discount, generating $161,247 in sales compared to $82,981 from the 20% discount.  
@@ -51,9 +50,9 @@ During the promotion month, the company's sales from promotions gradually increa
 
 ## Customer Segmentation
 
-- The promotion sales were highest among customers aged 55-69, generating $230K in revenue, followed by those aged 40-54, contributing $160K. Female customers in the 55-69 age group contributed the highest sales to the program at $41,055, around 8% of total promotion revenue.
+- The promotion sales were highest among customers aged 55-69, generating $230K in revenue, followed by those aged 40-54, contributing $160K. Female customers in the 55-69 age group contributed the highest sales to the program at $41,055, around 8% of total promotion revenue.  
 ![Customer Revenue](./img/customer%20revenue.png)
-- Vouchers were most widely used by customers aged 55-69, but there is an emerging trend of voucher use among male customers aged 40-54 who became members more recently.
+- Vouchers were most widely used by customers aged 55-69, but there is an emerging trend of voucher use among male customers aged 40-54 who became members more recently.  
 ![Customer Sales](./img/customer%20sales.png)
 ---
 
