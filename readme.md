@@ -78,3 +78,4 @@ During the promotion month, the company's sales from promotions gradually increa
    - Despite high engagement with BOGO offers, conversion rates were lower compared to discounts.
    - **Recommendation**: Refine BOGO offers by promoting lower price points (like $5) and adding more value through loyalty points or small discounts to increase attractiveness.
 
+These insights will be utilized to aid marketing analysts in understanding the current situation and exploring further opportunities for future marketing campaigns.
