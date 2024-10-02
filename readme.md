@@ -9,6 +9,8 @@ Insights and recommendations are provided on the following key areas:
 - **Promotion Performance**: An analysis of the reward program's impact on customer retention and sales.
 - **Customer Segmentation**: Understanding the impact of different demographics on sales and promotion campaigns.
 
+![Marketing Reward Program GIF](https://raw.githubusercontent.com/kelvindinhq/reward_program_marketing_analytic/refs/heads/main/img/rewardprogram-git.gif)
+
 An interactive PowerBI dashboard can be downloaded [here](https://github.com/kelvindinhq/reward_program_marketing_analytic/tree/main/dashboard).  
 The SQL queries in SQL serverless Pool utilized to inspect and perform quality checks can be found [here](https://github.com/kelvindinhq/reward_program_marketing_analytic/tree/main/sqlscript).  
 The PySpark commands in SQL Spark pool utilized to clean, organize, and prepare data for the dashboard can be found [here](https://github.com/kelvindinhq/reward_program_marketing_analytic/tree/main/notebook).  
